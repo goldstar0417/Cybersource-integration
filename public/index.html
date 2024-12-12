@@ -1,89 +1,128 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Payment Form</title>
+    <title>Payment Processing</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; }
-        input { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        input { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; cursor: pointer; }
         .error { color: red; margin-top: 10px; }
         .success { color: green; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h2>Payment Form</h2>
-    <form id="payment-form">
+    <h1>Payment Processing System</h1>
+    <div id="payment-form">
+        <!-- Card Information -->
+        <h3>Card Information</h3>
         <div class="form-group">
-            <label>Amount:</label>
-            <input type="number" id="amount" name="amount" step="0.01" required value="10">
+            <label for="card_number">Card Number:</label>
+            <input type="text" id="card_number" name="card_number" placeholder="4111 1111 1111 1111">
         </div>
         <div class="form-group">
-            <label>Currency:</label>
-            <input type="text" id="currency" name="currency" required value="USD">
+            <label for="expiry_month">Expiry Month:</label>
+            <input type="text" id="expiry_month" name="expiry_month" placeholder="MM">
         </div>
         <div class="form-group">
-            <label>Card Number:</label>
-            <input type="text" id="card_number" name="card_number" required value="4111111111111111">
+            <label for="expiry_year">Expiry Year:</label>
+            <input type="text" id="expiry_year" name="expiry_year" placeholder="YYYY">
         </div>
         <div class="form-group">
-            <label>Expiry Month (MM):</label>
-            <input type="text" id="expiry_month" name="expiry_month" required value="12">
+            <label for="cvv">CVV:</label>
+            <input type="text" id="cvv" name="cvv" placeholder="123">
         </div>
-        <div class="form-group">
-            <label>Expiry Year (YYYY):</label>
-            <input type="text" id="expiry_year" name="expiry_year" required value="2025">
-        </div>
-        <div class="form-group">
-            <label>CVV:</label>
-            <input type="text" id="cvv" name="cvv" required value="123">
-        </div>
-        <button type="submit">Process Payment</button>
-    </form>
 
-    <div id="result"></div>
+        <!-- Billing Information -->
+        <h3>Billing Information</h3>
+        <div class="form-group">
+            <label for="firstName">First Name:</label>
+            <input type="text" id="firstName" name="firstName" placeholder="John">
+        </div>
+        <div class="form-group">
+            <label for="lastName">Last Name:</label>
+            <input type="text" id="lastName" name="lastName" placeholder="Doe">
+        </div>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" placeholder="john@example.com">
+        </div>
+        <div class="form-group">
+            <label for="address1">Address:</label>
+            <input type="text" id="address1" name="address1" placeholder="123 Main St">
+        </div>
+        <div class="form-group">
+            <label for="city">City:</label>
+            <input type="text" id="city" name="city" placeholder="New York">
+        </div>
+        <div class="form-group">
+            <label for="country">Country:</label>
+            <input type="text" id="country" name="country" placeholder="US">
+        </div>
+        <div class="form-group">
+            <label for="state">State:</label>
+            <input type="text" id="state" name="state" placeholder="NY">
+        </div>
+        <div class="form-group">
+            <label for="postalCode">ZIP Code:</label>
+            <input type="text" id="postalCode" name="postalCode" placeholder="10001">
+        </div>
+
+        <!-- Payment Amount -->
+        <h3>Payment Details</h3>
+        <div class="form-group">
+            <label for="amount">Amount:</label>
+            <input type="text" id="amount" name="amount" placeholder="100.00">
+        </div>
+
+        <button onclick="processPayment()">Process Payment</button>
+    </div>
+    <div id="status-message"></div>
 
     <script>
-        document.getElementById('payment-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Collect form data as JSON
-            const formData = {
-                amount: document.getElementById('amount').value,
-                currency: document.getElementById('currency').value,
+        function processPayment() {
+            const paymentData = {
                 card_number: document.getElementById('card_number').value,
                 expiry_month: document.getElementById('expiry_month').value,
                 expiry_year: document.getElementById('expiry_year').value,
-                cvv: document.getElementById('cvv').value
+                cvv: document.getElementById('cvv').value,
+                amount: document.getElementById('amount').value,
+                currency: 'USD',
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                email: document.getElementById('email').value,
+                address1: document.getElementById('address1').value,
+                locality: document.getElementById('city').value,
+                country: document.getElementById('country').value,
+                administrativeArea: document.getElementById('state').value,
+                postalCode: document.getElementById('postalCode').value
             };
-            
-            // Send as JSON
+
             fetch('process-payment.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(paymentData)
             })
             .then(response => response.json())
-            .then(data => {
-                const resultDiv = document.getElementById('result');
-                if (data.success) {
-                    resultDiv.className = 'success';
-                    resultDiv.innerHTML = `Payment successful! Transaction ID: ${data.transaction_id}`;
+            .then(result => {
+                const statusDiv = document.getElementById('status-message');
+                if (result.success) {
+                    statusDiv.className = 'success';
+                    statusDiv.innerText = 'Payment processed successfully!';
                 } else {
-                    resultDiv.className = 'error';
-                    resultDiv.innerHTML = `Payment failed: ${data.error}`;
+                    statusDiv.className = 'error';
+                    statusDiv.innerText = 'Error: ' + result.error;
                 }
             })
             .catch(error => {
-                const resultDiv = document.getElementById('result');
-                resultDiv.className = 'error';
-                resultDiv.innerHTML = 'An error occurred while processing the payment';
-                console.error('Error:', error);
+                const statusDiv = document.getElementById('status-message');
+                statusDiv.className = 'error';
+                statusDiv.innerText = 'Error processing payment: ' + error.message;
             });
-        });
+        }
     </script>
 </body>
 </html>
