@@ -1,15 +1,14 @@
 {
     "name": "your-vendor/cybersource-integration",
-    "description": "Cybersource payment integration with Cardinal 3DS",
+    "description": "Cybersource payment integration with 3DS support",
     "type": "project",
     "require": {
         "php": ">=7.4",
-        "ext-curl": "*",
-        "ext-json": "*"
+        "guzzlehttp/guzzle": "^7.9"
     },
     "autoload": {
         "psr-4": {
-            "App\\": "src/"
+            "": "src/"
         }
     }
 }

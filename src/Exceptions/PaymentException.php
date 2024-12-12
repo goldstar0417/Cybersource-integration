@@ -1,18 +1,15 @@
 <?php
-namespace App\Exceptions;
+namespace Exceptions;
 
-class PaymentException extends \Exception 
-{
+class PaymentException extends \Exception {
     protected $errorData;
 
-    public function __construct(string $message = "", int $code = 0, ?array $errorData = null) 
-    {
-        parent::__construct($message, $code);
-        $this->errorData = $errorData ?? [];
+    public function __construct($message, $errorData = [], $code = 0, \Throwable $previous = null) {
+        $this->errorData = $errorData;
+        parent::__construct($message, $code, $previous);
     }
 
-    public function getErrorData(): array 
-    {
+    public function getErrorData() {
         return $this->errorData;
     }
 }
