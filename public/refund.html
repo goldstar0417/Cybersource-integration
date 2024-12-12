@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Refund Form</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        .error { color: red; margin-top: 10px; }
+        .success { color: green; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Refund Form</h2>
+    <form id="refund-form" action="process-refund.php" method="POST">
+        <div class="form-group">
+            <label for="transaction_id">Transaction ID:</label>
+            <input type="text" id="transaction_id" name="transaction_id" required>
+        </div>
+        <div class="form-group">
+            <label for="amount">Refund Amount:</label>
+            <input type="number" id="amount" name="amount" step="0.01" min="0.01" required>
+        </div>
+        <div class="form-group">
+            <label for="currency">Currency:</label>
+            <input type="text" id="currency" name="currency" value="USD" required>
+        </div>
+        <button type="submit">Process Refund</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('refund-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('process-refund.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('result');
+                if (data.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `Refund successful! Refund ID: ${data.refund_id}`;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `Refund failed: ${data.error}`;
+                }
+            })
+            .catch(error => {
+                document.getElementById('result').className = 'error';
+                document.getElementById('result').innerHTML = 'An error occurred while processing the refund';
+            });
+        });
+    </script>
+</body>
+</html>
