@@ -6,5 +6,5 @@ return [
     'key_id' => 'b35236e6-a797-4399-b2da-a3be984f1d3f',  // Verify this
     'api_identifier' => '67461c6a1C71a07ae3c1a852',
     'org_unit_id' => '67461c6a4ac1d108dc240c51',
-    'environment' => 'production'
+    'environment' => 'test'
 ];

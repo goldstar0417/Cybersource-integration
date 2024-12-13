@@ -79,9 +79,35 @@
         <button onclick="processPayment()">Process Payment</button>
     </div>
     <div id="status-message"></div>
-
+    <script src="https://songbirdstag.cardinalcommerce.com/cardinalcruise/v1/songbird.js"></script>
     <script>
-        function processPayment() {
+        // Initialize Cardinal Cruise
+        let cardinal;
+
+        async function initializeCardinalCruise(jwt) {
+            return new Promise((resolve, reject) => {
+                Cardinal.configure({
+                    logging: {
+                        level: "verbose"
+                    }
+                });
+
+                Cardinal.setup("init", {
+                    jwt: jwt
+                });
+
+                Cardinal.on('payments.setupComplete', function(setupCompleteData) {
+                    resolve(setupCompleteData);
+                });
+
+                Cardinal.on('payments.validated', function(data, jwt) {
+                    console.log('Validation Complete:', data);
+                });
+            });
+        }
+
+        async function processPayment() {
+            try {
             const paymentData = {
                 card_number: document.getElementById('card_number').value,
                 expiry_month: document.getElementById('expiry_month').value,
@@ -98,30 +124,43 @@
                 administrativeArea: document.getElementById('state').value,
                 postalCode: document.getElementById('postalCode').value
             };
+            // Step 1: Initiate Cruise Authentication
+            const cruiseResponse = await fetch('cruise-auth.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(paymentData)
+                }).then(r => r.json());
 
-            fetch('process-payment.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(paymentData)
-            })
-            .then(response => response.json())
-            .then(result => {
+                if (!cruiseResponse.success) {
+                    throw new Error(cruiseResponse.error);
+                }
+
+            // Step 2: Initialize Cardinal Cruise with JWT
+            await initializeCardinalCruise(cruiseResponse.data.jwt);
+
+            // Step 3: Process final payment
+            const finalResponse = await fetch('process-payment.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...paymentData,
+                        referenceId: cruiseResponse.data.referenceId
+                    })
+                }).then(r => r.json());
+
                 const statusDiv = document.getElementById('status-message');
-                if (result.success) {
+                if (finalResponse.success) {
                     statusDiv.className = 'success';
                     statusDiv.innerText = 'Payment processed successfully!';
                 } else {
                     statusDiv.className = 'error';
-                    statusDiv.innerText = 'Error: ' + result.error;
+                    statusDiv.innerText = 'Error: ' + finalResponse.error;
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 const statusDiv = document.getElementById('status-message');
                 statusDiv.className = 'error';
                 statusDiv.innerText = 'Error processing payment: ' + error.message;
-            });
+            }
         }
     </script>
 </body>
