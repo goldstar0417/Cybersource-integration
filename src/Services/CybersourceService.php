@@ -155,7 +155,146 @@ class CybersourceService
                     'postalCode' => $data['postalCode'] ?? '',
                     'country' => $data['country']
                 ]
+            ],
+            'consumerAuthenticationInformation' => [
+                'requestorId' => $this->config['org_unit_id'],
+                'referenceId' => $data['referenceId'] ?? null,
+                'transactionMode' => 'ECOMMERCE'
             ]
+        ];
+    }
+    // public function initiateCruiseAuthentication(array $paymentData): array
+    // {
+    //     try {
+    //         $payload = [
+    //             'clientReferenceInformation' => [
+    //                 'code' => uniqid('CRUISE_')
+    //             ],
+    //             'orderInformation' => [
+    //                 'amountDetails' => [
+    //                     'totalAmount' => $paymentData['amount'],
+    //                     'currency' => 'USD'
+    //                 ]
+    //             ],
+    //             'consumerAuthenticationInformation' => [
+    //                 'requestorId' => $this->config['org_unit_id'],
+    //                 'referenceId' => uniqid(),
+    //                 'transactionMode' => 'ECOMMERCE',
+    //                 'returnUrl' => $paymentData['returnUrl'] ?? '', // Add this field
+    //                 'merchantName' => $this->config['merchant_id']
+    //             ]
+    //         ];
+
+    //         $response = $this->client->post('risk/v1/authentications', [
+    //             'headers' => $this->getHeaders('post', '/risk/v1/authentications', json_encode($payload)),
+    //             'json' => $payload
+    //         ]);
+
+    //         return json_decode($response->getBody()->getContents(), true);
+    //     } catch (GuzzleException $e) {
+    //         $this->logger->log('Cruise Authentication Failed', [
+    //             'error' => $e->getMessage(),
+    //             'code' => $e->getCode()
+    //         ]);
+    //         throw new PaymentException('Cruise Authentication Failed: ' . $e->getMessage());
+    //     }
+    // }
+
+    public function initiateCruiseAuthentication(array $paymentData): array
+    {
+        try {
+            $payload = [
+                'clientReferenceInformation' => [
+                    'code' => uniqid('CRUISE_'),
+                ],
+                'orderInformation' => [
+                    'amountDetails' => [
+                        'totalAmount' => $paymentData['amount'],
+                        'currency' => $paymentData['currency'] ?? 'USD',
+                    ],
+                ],
+                'consumerAuthenticationInformation' => [
+                    'requestorId' => $this->config['org_unit_id'],
+                    'referenceId' => uniqid(),
+                    'transactionMode' => 'ECOMMERCE',
+                    'authenticationPath' => 'BROWSER',
+                    'returnUrl' => 'https://localhost:8000/',
+                ],
+                'deviceInformation' => [
+                    'ipAddress' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+                ],
+            ];
+    
+            $resourcePath = '/pts/v2/authentications';
+            $headers = $this->getHeaders('post', $resourcePath, $payload);
+    
+            $this->logger->log('Cruise Authentication Request', [
+                'url' => $this->getApiUrl() . $resourcePath,
+                'headers' => $headers,
+                'payload' => $payload,
+            ]);
+    
+            $response = $this->client->post($resourcePath, [
+                'headers' => $headers,
+                'json' => $payload,
+            ]);
+    
+            $result = json_decode($response->getBody()->getContents(), true);
+            $this->logger->log('Cruise Authentication Response', $result);
+    
+            return $result;
+        } catch (GuzzleException $e) {
+            $this->logger->log('Cruise Authentication Failed', [
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+            ]);
+            throw new PaymentException('Cruise Authentication Failed: ' . $e->getMessage());
+        }
+    }
+
+    private function getHeaders(string $method, string $resourcePath, array $payload = []): array
+    {
+        $gmtDate = gmdate('D, d M Y H:i:s \G\M\T');
+        $hostName = parse_url($this->getApiUrl(), PHP_URL_HOST);
+
+        // Generate digest from payload
+        $jsonPayload = !empty($payload) ? json_encode($payload) : '';
+        // Generate digest
+        $digest = 'SHA-256=' . base64_encode(hash('sha256', $jsonPayload, true));
+
+        // Create signature string
+        $signatureString = [
+            "host: " . $hostName,
+            "date: " . $gmtDate,
+            "(request-target): " . strtolower($method) . " " . $resourcePath,
+            "digest: " . $digest,
+            "v-c-merchant-id: " . $this->config['merchant_id']
+        ];
+
+        $signatureBody = implode("\n", $signatureString);
+
+        // Log the signature string for debugging
+        $this->logger->log('Signature String', ['string' => $signatureBody]);
+
+        // Generate signature
+        $decodedSecret = base64_decode($this->config['secret_key']);
+        $signature = base64_encode(hash_hmac('sha256', $signatureBody, $decodedSecret, true));
+
+        // Create signature header
+        $signatureHeader = sprintf(
+            'keyid="%s", algorithm="HmacSHA256", headers="host date (request-target) digest v-c-merchant-id", signature="%s"',
+            $this->config['key_id'],
+            $signature
+        );
+
+        return [
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+            'Host' => $hostName,
+            'Date' => $gmtDate,
+            'Digest' => $digest,
+            'Signature' => $signatureHeader,
+            'v-c-merchant-id' => $this->config['merchant_id']
         ];
     }
 }
