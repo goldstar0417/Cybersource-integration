@@ -88,7 +88,7 @@
             return new Promise((resolve, reject) => {
                 Cardinal.configure({
                     logging: {
-                        level: "verbose"
+                        level: "on"
                     }
                 });
 
@@ -97,11 +97,13 @@
                 });
 
                 Cardinal.on('payments.setupComplete', function(setupCompleteData) {
+                    console.log('Setup complete');
                     resolve(setupCompleteData);
                 });
 
                 Cardinal.on('payments.validated', function(data, jwt) {
                     console.log('Validation Complete:', data);
+                    console.log(jwt);
                 });
             });
         }
@@ -124,24 +126,30 @@
                 administrativeArea: document.getElementById('state').value,
                 postalCode: document.getElementById('postalCode').value
             };
+
             // Step 1: Initiate Cruise Authentication
             const cruiseResponse = await fetch('cruise-auth.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                    },
                     body: JSON.stringify(paymentData)
                 }).then(r => r.json());
 
                 if (!cruiseResponse.success) {
                     throw new Error(cruiseResponse.error);
                 }
-
+                console.log("step 1 Pass");        
             // Step 2: Initialize Cardinal Cruise with JWT
-            await initializeCardinalCruise(cruiseResponse.data.jwt);
-
+            await initializeCardinalCruise(cruiseResponse.data);
+            console.log("step 2 Pass");
+            await Cardinal.start('cca',paymentData);
+            console.log("step 3 Start");    
             // Step 3: Process final payment
             const finalResponse = await fetch('process-payment.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json'
+                     },
                     body: JSON.stringify({
                         ...paymentData,
                         referenceId: cruiseResponse.data.referenceId
