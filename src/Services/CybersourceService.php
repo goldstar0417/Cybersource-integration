@@ -10,7 +10,7 @@ class CybersourceService
 {
     private $config;
     private $logger;
-    private $client;
+    public $client;
 
     public function __construct(array $config, LoggerService $logger)
     {
@@ -22,7 +22,7 @@ class CybersourceService
         ]);
     }
 
-    private function getApiUrl(): string
+    public function getApiUrl(): string
     {
         return $this->config['environment'] === 'production'
             ? 'https://api.cybersource.com'
@@ -163,57 +163,45 @@ class CybersourceService
             ]
         ];
     }
-    // public function initiateCruiseAuthentication(array $paymentData): array
-    // {
-    //     try {
-    //         $payload = [
-    //             'clientReferenceInformation' => [
-    //                 'code' => uniqid('CRUISE_')
-    //             ],
-    //             'orderInformation' => [
-    //                 'amountDetails' => [
-    //                     'totalAmount' => $paymentData['amount'],
-    //                     'currency' => 'USD'
-    //                 ]
-    //             ],
-    //             'consumerAuthenticationInformation' => [
-    //                 'requestorId' => $this->config['org_unit_id'],
-    //                 'referenceId' => uniqid(),
-    //                 'transactionMode' => 'ECOMMERCE',
-    //                 'returnUrl' => $paymentData['returnUrl'] ?? '', // Add this field
-    //                 'merchantName' => $this->config['merchant_id']
-    //             ]
-    //         ];
-
-    //         $response = $this->client->post('risk/v1/authentications', [
-    //             'headers' => $this->getHeaders('post', '/risk/v1/authentications', json_encode($payload)),
-    //             'json' => $payload
-    //         ]);
-
-    //         return json_decode($response->getBody()->getContents(), true);
-    //     } catch (GuzzleException $e) {
-    //         $this->logger->log('Cruise Authentication Failed', [
-    //             'error' => $e->getMessage(),
-    //             'code' => $e->getCode()
-    //         ]);
-    //         throw new PaymentException('Cruise Authentication Failed: ' . $e->getMessage());
-    //     }
-    // }
 
     public function initiateCruiseAuthentication(array $paymentData): array
     {
         try {
             $payload = [
                 'clientReferenceInformation' => [
-                    'code' => uniqid('CRUISE_'),
+                    "code"=> "TC50171_3"
+                ],
+                'paymentInformation' => [
+                    'card' => [
+                        'number' => '4111111111111111',
+                        'expirationMonth' => '12',
+                        'expirationYear' => '2025'
+                    ]
+                ],
+                "processingInformation" => [
+                        "actionList" => [
+                        "VALIDATE_CONSUMER_AUTHENTICATION"
+                        ]
                 ],
                 'orderInformation' => [
                     'amountDetails' => [
                         'totalAmount' => $paymentData['amount'],
                         'currency' => $paymentData['currency'] ?? 'USD',
                     ],
+                    "lineItems" => [
+                          "name" => "Laptop",
+                          "code" => "LAP123",
+                          "quantity" => 1,
+                          "unitPrice" => "10.00",
+                          "totalAmount" => "10.00",
+                          "description"=> "Gaming Laptop",
+                          "category"=> "Electronics",
+                          "taxAmount"=> "5.00",
+                          "discountAmount"=> "0.00"
+                    ]   
                 ],
                 'consumerAuthenticationInformation' => [
+                    "authenticationTransactionId" => $this->config['merchant_id'],
                     'requestorId' => $this->config['org_unit_id'],
                     'referenceId' => uniqid(),
                     'transactionMode' => 'ECOMMERCE',
@@ -224,25 +212,9 @@ class CybersourceService
                     'ipAddress' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
                 ],
             ];
-    
-            $resourcePath = '/pts/v2/authentications';
-            $headers = $this->getHeaders('post', $resourcePath, $payload);
-    
-            $this->logger->log('Cruise Authentication Request', [
-                'url' => $this->getApiUrl() . $resourcePath,
-                'headers' => $headers,
-                'payload' => $payload,
-            ]);
-    
-            $response = $this->client->post($resourcePath, [
-                'headers' => $headers,
-                'json' => $payload,
-            ]);
-    
-            $result = json_decode($response->getBody()->getContents(), true);
-            $this->logger->log('Cruise Authentication Response', $result);
-    
-            return $result;
+
+            return $payload;
+
         } catch (GuzzleException $e) {
             $this->logger->log('Cruise Authentication Failed', [
                 'error' => $e->getMessage(),
@@ -252,7 +224,7 @@ class CybersourceService
         }
     }
 
-    private function getHeaders(string $method, string $resourcePath, array $payload = []): array
+    public function getHeaders(string $method, string $resourcePath, array $payload = []): array
     {
         $gmtDate = gmdate('D, d M Y H:i:s \G\M\T');
         $hostName = parse_url($this->getApiUrl(), PHP_URL_HOST);
@@ -264,9 +236,10 @@ class CybersourceService
 
         // Create signature string
         $signatureString = [
-            "host: " . $hostName,
-            "date: " . $gmtDate,
-            "(request-target): " . strtolower($method) . " " . $resourcePath,
+            "host: " . 'api.cybersource.com',
+            "v-c-date: " . $gmtDate,
+            "Content-Type: " . "application/json", 
+            "request-target: " . strtolower($method) . " " . $resourcePath,
             "digest: " . $digest,
             "v-c-merchant-id: " . $this->config['merchant_id']
         ];
@@ -282,18 +255,17 @@ class CybersourceService
 
         // Create signature header
         $signatureHeader = sprintf(
-            'keyid="%s", algorithm="HmacSHA256", headers="host date (request-target) digest v-c-merchant-id", signature="%s"',
+            'keyid="%s", algorithm="HmacSHA256", headers="host v-c-date request-target digest v-c-merchant-id", signature="%s"',
             $this->config['key_id'],
             $signature
         );
 
         return [
-            'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-            'Host' => $hostName,
-            'Date' => $gmtDate,
-            'Digest' => $digest,
-            'Signature' => $signatureHeader,
+            'host' => $hostName,
+            'v-c-date' => $gmtDate,
+            'digest' => $digest,
+            'signature' => $signatureHeader,
             'v-c-merchant-id' => $this->config['merchant_id']
         ];
     }
